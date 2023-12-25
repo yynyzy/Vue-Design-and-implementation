@@ -1,11 +1,13 @@
 // 桶结构，收集副作用函数, WeakMap<any, Map<any, Set<any>>>
 const bucket = new WeakMap();
-
 // 保存当前注册的副作用函数
 let activeEffect = '';
+// effect 嵌套时收集副作用，在运行副作用函数之后弹出它
+const effectStack = [];
 
 const dataSource = {
-  text: 'observe obj before change'
+  foo: true,
+  bar: true,
 };
 
 const effect = (fn) => {
@@ -13,7 +15,10 @@ const effect = (fn) => {
   const effectFn = () => {
     cleanup(effectFn);
     activeEffect = effectFn;
+    effectStack.push(effectFn);
     fn();
+    effectStack.pop();
+    activeEffect = effectStack[effectStack.length - 1];
   };
   effectFn.deps = [];
   effectFn();
@@ -43,6 +48,7 @@ const track = (target, key) => {
   }
   deps.add(activeEffect);
   activeEffect.deps.push(deps);
+  console.log('activeEffect.deps.length' , activeEffect.deps.length);
 };
 
 const trigger = (target, key) => {
@@ -67,8 +73,16 @@ const obj = new Proxy(dataSource, {
   },
 });
 
-effect(()=>{ document.body.innerHTML = obj.text });
+let t1, t2;
+effect(function ef1 () {
+  console.log('foo执行');
+  effect(function ef2 (){
+    console.log('bar执行');
+    t2 = obj.bar;
+  })
+  t1 = obj.foo;
+});
 
-setTimeout(()=> {
-  obj.text = 'observe obj after change';
-}, 2000);
+// setTimeout(()=> {
+//   obj.text = 'observe obj after change';
+// }, 2000);
