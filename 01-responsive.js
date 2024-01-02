@@ -6,8 +6,7 @@ let activeEffect = '';
 const effectStack = [];
 
 const dataSource = {
-  foo: true,
-  bar: true,
+  foo: 1,
 };
 
 const effect = (fn) => {
@@ -19,7 +18,10 @@ const effect = (fn) => {
     fn();
     effectStack.pop();
     activeEffect = effectStack[effectStack.length - 1];
+    console.log('effectStack', effectStack);
+    console.log('activeEffect', activeEffect);
   };
+  console.log('effectFn', effectFn);
   effectFn.deps = [];
   effectFn();
 };
@@ -48,17 +50,23 @@ const track = (target, key) => {
   }
   deps.add(activeEffect);
   activeEffect.deps.push(deps);
-  console.log('activeEffect.deps.length' , activeEffect.deps.length);
 };
 
 const trigger = (target, key) => {
   let target_in_bucket = bucket.get(target);
   if(!target_in_bucket) return;
+  console.log('target_in_bucket', target_in_bucket);
+
   // 获取桶中对应 target 的对象并且拿到对应 key 的副作用 Set，如果存在，触发他们
   let effects = target_in_bucket.get(key);
   // 使用一个新set作为 effects 放入副本，防止死循环，副作用函数触发导致 effects 重写遍历
   const effectsTemp = new Set(effects);
-  effectsTemp.forEach(effect => effect());
+  console.log('effectsTemp', effectsTemp);
+  effectsTemp.forEach(effect => {
+    if(effect !== activeEffect){
+      effect();
+    }
+  });
 };
 
 const obj = new Proxy(dataSource, {
@@ -73,16 +81,17 @@ const obj = new Proxy(dataSource, {
   },
 });
 
-let t1, t2;
-effect(function ef1 () {
-  console.log('foo执行');
-  effect(function ef2 (){
-    console.log('bar执行');
-    t2 = obj.bar;
-  })
-  t1 = obj.foo;
-});
+// let t1, t2;
+// effect(function ef1 () {
+//   console.log('foo执行');
+//   effect(function ef2 (){
+//     console.log('bar执行');
+//     t2 = obj.bar;
+//   })
+//   t1 = obj.foo;
+// });
 
-// setTimeout(()=> {
-//   obj.text = 'observe obj after change';
-// }, 2000);
+setTimeout(()=> {
+  obj.foo = 2;
+}, 2000);
+// effect(() => obj.foo++);
