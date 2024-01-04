@@ -9,7 +9,7 @@ const dataSource = {
   foo: 1,
 };
 
-const effect = (fn) => {
+const effect = (fn, options) => {
   // 每次触发副作用函数时先清除对应key的副作用函数依赖
   const effectFn = () => {
     cleanup(effectFn);
@@ -18,12 +18,13 @@ const effect = (fn) => {
     fn();
     effectStack.pop();
     activeEffect = effectStack[effectStack.length - 1];
-    console.log('effectStack', effectStack);
-    console.log('activeEffect', activeEffect);
   };
-  console.log('effectFn', effectFn);
+  effectFn.options = options;
   effectFn.deps = [];
-  effectFn();
+  if(!options.lazy) {
+    effectFn();
+  }
+  return effectFn;
 };
 
 const cleanup = (effectFn) => {
@@ -55,16 +56,15 @@ const track = (target, key) => {
 const trigger = (target, key) => {
   let target_in_bucket = bucket.get(target);
   if(!target_in_bucket) return;
-  console.log('target_in_bucket', target_in_bucket);
-
   // 获取桶中对应 target 的对象并且拿到对应 key 的副作用 Set，如果存在，触发他们
   let effects = target_in_bucket.get(key);
   // 使用一个新set作为 effects 放入副本，防止死循环，副作用函数触发导致 effects 重写遍历
   const effectsTemp = new Set(effects);
-  console.log('effectsTemp', effectsTemp);
+
   effectsTemp.forEach(effect => {
     if(effect !== activeEffect){
       effect();
+  console.log('a');
     }
   });
 };
@@ -91,7 +91,13 @@ const obj = new Proxy(dataSource, {
 //   t1 = obj.foo;
 // });
 
-setTimeout(()=> {
-  obj.foo = 2;
-}, 2000);
-// effect(() => obj.foo++);
+// setTimeout(()=> {
+//   obj.foo = 2;
+// }, 2000);
+const effect_ = effect(() => {
+  console.log('obj.foo', obj.foo);
+}, {
+  lazy: true,
+});
+
+// effect_();
